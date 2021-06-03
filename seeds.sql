@@ -10,3 +10,6 @@ VALUES (
     234455,
     ""
 )
+
+INSERT INTO dept (dept_name)
+VALUES ('Administration', 'IT')

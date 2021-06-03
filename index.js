@@ -23,48 +23,39 @@ const start = () => {
         name: 'starterQ',
         type: 'list',
         message: 'Would you like to do?',
-        choices: ['Add departments, roles, employees', 
-        'View departments, roles, employees', 
-        'Update departments, roles, employees',
-        'Nothing'],
+        choices: ['Add departments', 
+        'Add roles',
+        'Add employees',
+        'View departments',
+        'View roles',
+        'View employees',
+        'Update employees roles',
+        'Exit'],
       })
       .then((answer) => {
         // based on their answer, either call the bid or the post functions
-        if (answer.starterQ === 'Add departments, roles, employees') {
-          addOption();
-        } else if (answer.starterQ === 'View departments, roles, employees') {
-          viewOption();
-        } else if (answer.starterQ === 'Update departments, roles, employees') {
-          updateOption();
+        if (answer.starterQ === 'Add departments') {
+          addDept();
+        } else if (answer.starterQ === 'Add roles') {
+          addRole();
+        } else if (answer.starterQ === 'Add employees') {
+          addEmployee();
+        }else if (answer.starterQ === 'View departments') {
+          viewOption('dept');
+        }else if (answer.starterQ === 'View roles') {
+          viewOption('roles');
+        }else if (answer.starterQ === 'View employees') {
+          viewOption('employee_tracker');
+        }else if (answer.starterQ === 'Update employees') {
+          updateEmp();
         }
         else {
+          console.log('Have a nice day')
           connection.end();
         }
       });
   };
 
-  const addOption = () => {
-    inquirer
-      .prompt([
-        {
-          name: "addWhat",
-          type: "list",
-          message: "What would you like to add?",
-          choices:['Add a department',
-          'Add a role',
-          'Add an employee']
-        },
-      ])
-    .then((answer) => {
-      if (answer.addWhat === 'Add a department') {
-        addDept();
-      } else if (answer.starterQ === 'Add a role') {
-        addRole();
-      } else {
-        addEmployee();
-      }
-    });
-  };
 
 const addDept = () => {
     inquirer
@@ -75,18 +66,8 @@ const addDept = () => {
             message: 'What is the name of the department?'
         },
         {
-            name: 'managerFirst',
-            type: 'input',
-            message: 'Please enter the first name of the department manager.'
-        },
-        {
-            name: 'managerLast',
-            type: 'input',
-            message: 'Please enter the last name of the department manager.'
-        },
-        {
             name: 'employeeCheck',
-            type: 'checkbox',
+            type: 'list',
             message: 'Would you like to add an employee as well?',
             choices: [
                 'Yes',
@@ -94,19 +75,72 @@ const addDept = () => {
             ]
         }
     ]).then((answer) =>  {
-        connection.query('INSERT INTO employee_tracker SET ?',
-        {
-            first_name: answer.managerFirst,
-            last_name: answer.managerLast,
-            title: "Manager",
-            department: answer.deptName,
-        },
-        (err) => {
-            if(err) throw err;
-            console.log('Employee was tracked successfully.')
-        })
+        if (answer.employeeCheck === 'Yes') {
+            addEmployee();
+        } else {
+            connection.query('INSERT INTO dept SET ?',
+            {
+                dept_name: answer.deptName,
+            },
+            (err) => {
+                if(err) throw err;
+                console.log('Department was tracked successfully.')
+                start();
+            })
+        }
+        
     })
 }
+
+const addRole = () => {
+    connection.query('SELECT * from dept', (err,results) => {
+      if (err) throw err;
+      inquirer
+        .prompt([
+            {
+                name: 'role_title',
+                type: 'input',
+                message: 'What is the name of the role?'
+            },
+            {
+                name: 'role_dept',
+                type: 'list',
+                message: 'Which department does this role belong to?',
+                choices() {
+                  const choiceArr = [];
+                  results.forEach(({dept_name}) => {
+                    choiceArr.push(dept_name);
+                  });
+                  return choiceArr;
+                }
+             },
+             {
+               name: 'salary',
+               type: 'number',
+               message: 'What is the salary for this role?'
+             }
+        ]).then((answer) =>  {
+            var department_id;
+            results.forEach((dept)=> {
+              if (dept.name === answer.role_dept){
+                department_id = dept.id
+              }
+            })
+            const role = {
+              title: answer.role_title,
+              salary: answer.role_salary,
+              department_id: department_id
+            }
+            connection.query('INSERT INTO roles SET ?', role, (err,res)=> {
+              if (err) throw err;
+              console.log('Role successfully added');
+              start();
+            })
+                })
+            }
+            
+        )
+    }
 
 const addEmployee= () => {
     inquirer
@@ -178,67 +212,41 @@ const addEmployee= () => {
 }
 
 
-// const viewOption = () => {
-//    // query the database for all employees
-//    connection.query('SELECT * FROM employee_tracker', (err, results) => {
-//      if (err) throw err;
-//      inquirer
-//        .prompt([
-//          {
-//            name: 'choice',
-//            type: 'rawlist',
-//           choices() {
-//           const choiceArray = [];
-//             results.forEach(({ item_name }) => {
-//             choiceArray.push(item_name);
-//             });
-//              return choiceArray;
-//            },
-//            message: 'What auction would you like to place a bid in?',
-//          },
-//          {
-//             name: 'bid',
-//             type: 'input',
-//             message: 'How much would you like to bid?',
-//           },
-//         ])
-//         .then((answer) => {
-//           // get the information of the chosen item
-//           let chosenItem;
-//           results.forEach((item) => {
-//             if (item.item_name === answer.choice) {
-//               chosenItem = item;
-//             }
-//           });
-  
-//           // determine if bid was high enough
-//           if (chosenItem.highest_bid < parseInt(answer.bid)) {
-//             // bid was high enough, so update db, let the user know, and start over
-//             connection.query(
-//               'UPDATE auctions SET ? WHERE ?',
-//               [
-//                 {
-//                   highest_bid: answer.bid,
-//                 },
-//                 {
-//                   id: chosenItem.id,
-//                 },
-//               ],
-//               (error) => {
-//                 if (error) throw err;
-//                 console.log('Bid placed successfully!');
-//                 start();
-//               }
-//             );
-//           } else {
-//             // bid wasn't high enough, so apologize and start over
-//             console.log('Your bid was too low. Try again...');
-//             start();
-//           }
-//         });
-//     });
-//   };
-
+const viewOption = (option) => {
+  const query = 'SELECT * from ??';
+  let table = option
+   connection.query(query,table,
+     (err,res)=> {
+       if (err) throw err;
+       console.log('--------------------------------');
+       console.table(res);
+       console.log('--------------------------------');
+       start();
+            })
+          }
+            
+        
+const updateEmp = () => {
+  connection.query('SELECT * from employee_tracker', (err,empRes)=>{
+    if (err) throw err;
+    connection.query('SELECT * from roles', (err,roleRes)=> {
+      if (err) throw err;
+      inquirer.prompt([
+        {
+          name: 'update_name',
+          type: 'list',
+          message: "Which employee's role would you like to update?",
+          choices() {
+            const choiceArr = [];
+            empRes.forEach(({ first_name, last_name}) => {
+              choiceArr.push(`${first_name} ${last_name}`)
+            })
+          }
+        }
+      ])
+    })
+  })
+}
 
 
   connection.connect((err) => {
