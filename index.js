@@ -1,7 +1,9 @@
 const mysql = require('mysql');
 const inquirer = require('inquirer');
 const cTable = require('console.table');
-const express = require('express')
+const express = require('express');
+const { response } = require('express');
+const Choice = require('inquirer/lib/objects/choice');
 
 const connection = mysql.createConnection({
     user: "qpj6tx8j1fzxnxqk",
@@ -19,7 +21,8 @@ app.use(express.urlencoded({ extended: true }));
 
 const start = () => {
     inquirer
-      .prompt({
+      .prompt([
+        {
         name: 'starterQ',
         type: 'list',
         message: 'Would you like to do?',
@@ -29,9 +32,9 @@ const start = () => {
         'View departments',
         'View roles',
         'View employees',
-        'Update employees roles',
+        'Update employee roles',
         'Exit'],
-      })
+      }])
       .then((answer) => {
         // based on their answer, either call the bid or the post functions
         if (answer.starterQ === 'Add departments') {
@@ -46,10 +49,10 @@ const start = () => {
           viewOption('roles');
         }else if (answer.starterQ === 'View employees') {
           viewOption('employee_tracker');
-        }else if (answer.starterQ === 'Update employees') {
+        }else if (answer.starterQ === 'Update employee roles') {
           updateEmp();
         }
-        else {
+        else if (answer.starterQ === 'Exit') {
           console.log('Have a nice day')
           connection.end();
         }
@@ -64,20 +67,8 @@ const addDept = () => {
             name: 'deptName',
             type: 'input',
             message: 'What is the name of the department?'
-        },
-        {
-            name: 'employeeCheck',
-            type: 'list',
-            message: 'Would you like to add an employee as well?',
-            choices: [
-                'Yes',
-                'No'
-            ]
         }
     ]).then((answer) =>  {
-        if (answer.employeeCheck === 'Yes') {
-            addEmployee();
-        } else {
             connection.query('INSERT INTO dept SET ?',
             {
                 dept_name: answer.deptName,
@@ -89,7 +80,7 @@ const addDept = () => {
             })
         }
         
-    })
+    )
 }
 
 const addRole = () => {
@@ -142,74 +133,74 @@ const addRole = () => {
         )
     }
 
-const addEmployee= () => {
-    inquirer
-    .prompt([
-        {
-            name: 'id',
-            type: 'number',
-            message: "Please enter the employee's ID number.",
-            validate(value) {
-                if (isNaN(value) === false) {
-                  return true;
+    const addEmployee= () => {
+      inquirer
+      .prompt([
+          {
+              name: 'id',
+              type: 'number',
+              message: "Please enter the employee's ID number.",
+              validate(value) {
+                  if (isNaN(value) === false) {
+                    return true;
+                  }
+                  return 'You must enter a valid number';
                 }
-                return 'You must enter a valid number';
-              }
-        },
-        {
-            name: 'firstName',
-            type: 'input',
-            message: "Please enter the employee's first name."
-        },
-        {
-            name: 'lastName',
-            type: 'input',
-            message: "Please enter the employee's last name."
-        },
-        {
-            name: 'title',
-            type: 'input',
-            message: "Please enter the employee's job title."
-        },
-        {
-            name: 'department',
-            type: 'input',
-            message: "Please enter the employee's department."
-        },
-        {
-            name: 'salary',
-            type: 'number',
-            message: "Please enter the employee's salary.",
-            validate(value) {
-                if (isNaN(value) === false) {
-                  return true;
+          },
+          {
+              name: 'firstName',
+              type: 'input',
+              message: "Please enter the employee's first name."
+          },
+          {
+              name: 'lastName',
+              type: 'input',
+              message: "Please enter the employee's last name."
+          },
+          {
+              name: 'title',
+              type: 'input',
+              message: "Please enter the employee's job title."
+          },
+          {
+              name: 'department',
+              type: 'input',
+              message: "Please enter the employee's department."
+          },
+          {
+              name: 'salary',
+              type: 'number',
+              message: "Please enter the employee's salary.",
+              validate(value) {
+                  if (isNaN(value) === false) {
+                    return true;
+                  }
+                  return 'You must enter a valid number';
                 }
-                return 'You must enter a valid number';
-              }
-        },
-        {
-            name: 'manager',
-            type: 'input',
-            message: "Please enter the employee's manager."
-        },
-    ]).then((answer) => {
-        connection.query('INSERT INTO employee_tracker SET ?',
-        {
-            id: answer.id,
-            first_name: answer.firstName,
-            last_name: answer.lastName,
-            title: answer.title,
-            department: answer.department,
-            salary: answer.salary || 0,
-            manager: answer.manager,
-        },
-        (err) => {
-            if(err) throw err;
-            console.log('Employee was tracked successfully.');
-            start();
-        })
-    })
-}
+          },
+          {
+              name: 'manager',
+              type: 'input',
+              message: "Please enter the employee's manager."
+          },
+      ]).then((answer) => {
+          connection.query('INSERT INTO employee_tracker SET ?',
+          {
+              id: answer.id,
+              first_name: answer.firstName,
+              last_name: answer.lastName,
+              title: answer.title,
+              department: answer.department,
+              salary: answer.salary || 0,
+              manager: answer.manager,
+          },
+          (err) => {
+              if(err) throw err;
+              console.log('Employee was tracked successfully.');
+              start();
+          })
+      })
+  }
 
 
 const viewOption = (option) => {
@@ -227,26 +218,45 @@ const viewOption = (option) => {
             
         
 const updateEmp = () => {
-  connection.query('SELECT * from employee_tracker', (err,empRes)=>{
-    if (err) throw err;
-    connection.query('SELECT * from roles', (err,roleRes)=> {
-      if (err) throw err;
-      inquirer.prompt([
-        {
-          name: 'update_name',
-          type: 'list',
-          message: "Which employee's role would you like to update?",
-          choices() {
-            const choiceArr = [];
-            empRes.forEach(({ first_name, last_name}) => {
-              choiceArr.push(`${first_name} ${last_name}`)
-            })
-          }
+  connection.query('SELECT * FROM employee_tracker', (err,empRes) => {
+    if(err) throw err;
+    var roleNames = empRes.map(({title}) => title)
+    inquirer.prompt([
+      {  
+        name: 'employeeUpdate',
+        type: 'list',
+        message: 'Which employee\'s role do you want to update?',
+        choices() {
+          const choiceArray = [];
+          empRes.forEach(({ first_name, last_name }) => {
+            choiceArray.push(`${first_name} ${last_name}`);
+          });
+          return choiceArray;
         }
-      ])
+      },
+      {
+        name: 'newRole',
+        type: 'list',
+        message: 'Choose a new role for the employee',
+        choices() {
+          const choiceArray = [];
+          empRes.forEach(({title})=> {
+            choiceArray.push(`${title}`);
+          });
+          return choiceArray;
+        }
+      },
+    ]).then(response => {
+      const newRole = response.newRole;
+      const role_id = empRes.find(role => role.title === newRole).id
+      connection.query('UPDATE employee_tracker SET title_id = ? WHERE first_name = ?', 
+      { role_id, first_name: response.name}, (err, data) => {
+        console.log('Updated employee');
+        start();
+      })
     })
-  })
-}
+  }
+  )}
 
 
   connection.connect((err) => {
